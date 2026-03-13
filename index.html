@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOS/MSS Signal Bot</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg:     #07090f;
+    --bg2:    #0d1117;
+    --bg3:    #161b27;
+    --border: rgba(255,255,255,0.06);
+    --border2:rgba(255,255,255,0.11);
+    --green:  #00e676;
+    --green2: #00c853;
+    --red:    #ff1744;
+    --red2:   #d50000;
+    --yellow: #ffd600;
+    --blue:   #448aff;
+    --purple: #b388ff;
+    --text:   #e8eaf6;
+    --text2:  #7986a3;
+    --text3:  #3d4a5c;
+    --mono:   'JetBrains Mono', monospace;
+    --sans:   'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 14px;
+    background-image:
+      radial-gradient(ellipse 80% 40% at 50% -20%, rgba(68,138,255,0.07) 0%, transparent 60%);
+  }
+
+  /* ── HEADER ─────────────────────────────────── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 18px;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .logo { font-size: 14px; font-weight: 800; letter-spacing: 1px; color: var(--text); }
+  .pair-tag {
+    font-family: var(--mono); font-size: 11px; color: var(--blue);
+    background: rgba(68,138,255,0.1); padding: 3px 9px; border-radius: 5px;
+    border: 1px solid rgba(68,138,255,0.2);
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--red); animation: pulse 1.5s infinite; display: inline-block; margin-right: 5px;
+  }
+  .status-dot.live { background: var(--green); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+  .price-big { font-family: var(--mono); font-size: 20px; font-weight: 700; transition: color 0.15s; }
+
+  /* ── METRICS ROW ────────────────────────────── */
+  .metrics-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 9px; margin-bottom: 12px; }
+  .mc {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .mc-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px; }
+  .mc-val { font-family: var(--mono); font-size: 18px; font-weight: 700; }
+  .green { color: var(--green); } .red { color: var(--red); }
+  .yellow { color: var(--yellow); } .blue { color: var(--blue); }
+
+  /* ── LAYOUT ─────────────────────────────────── */
+  .main-grid { display: grid; grid-template-columns: 1fr 330px; gap: 12px; }
+
+  .panel {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 11px; overflow: hidden;
+  }
+  .ph {
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.9px; color: var(--text2);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .pb { padding: 14px 16px; }
+
+  /* ── CHART ──────────────────────────────────── */
+  #miniChart { width: 100%; height: 175px; display: block; }
+
+  /* ── STRUCTURE LOG ──────────────────────────── */
+  .structure-log { max-height: 130px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+  .struct-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 11px; }
+  .struct-price { font-family: var(--mono); color: var(--text2); font-size: 11px; }
+  .sbadge {
+    font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+  .sb-bb { background: rgba(0,230,118,0.12); color: var(--green); }
+  .sb-br { background: rgba(255,23,68,0.12);  color: var(--red); }
+  .sb-mb { background: rgba(0,230,118,0.22); color: var(--green); border: 1px solid var(--green2); }
+  .sb-mr { background: rgba(255,23,68,0.22);  color: var(--red);   border: 1px solid var(--red2); }
+
+  /* ── TRADES TABLE ───────────────────────────── */
+  .trades-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .trades-table th {
+    font-size: 9px; color: var(--text3); text-transform: uppercase;
+    letter-spacing: 0.6px; padding: 5px 8px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .trades-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.025); font-family: var(--mono); font-size: 11px; }
+  .trades-wrap { max-height: 190px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+  .tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+  .tw { background: rgba(255,214,0,0.12); color: var(--yellow); }
+  .tl { background: rgba(255,23,68,0.12);  color: var(--red); }
+  .to { background: rgba(68,138,255,0.12); color: var(--blue); }
+
+  /* ── RIGHT PANEL INPUTS ─────────────────────── */
+  .cg label { display:block; font-size:10px; color:var(--text2); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.6px; }
+  .cg input {
+    width:100%; background:var(--bg3); border:1px solid var(--border2);
+    border-radius:7px; color:var(--text); font-family:var(--mono);
+    font-size:13px; padding:7px 10px; outline:none; transition:border-color 0.2s;
+  }
+  .cg input:focus { border-color: var(--blue); }
+  .cg { margin-bottom: 9px; }
+
+  .btn {
+    width:100%; padding:9px; border-radius:8px; border:none;
+    font-family:var(--sans); font-size:12px; font-weight:700;
+    cursor:pointer; transition:all 0.15s; letter-spacing:0.3px;
+  }
+  .btn-g  { background:var(--green2); color:#000; }
+  .btn-r  { background:var(--red2);   color:#fff; }
+  .btn-gh { background:var(--bg3); color:var(--text); border:1px solid var(--border2); }
+  .btn:hover { opacity:0.82; transform:translateY(-1px); }
+  .btn:active { transform:scale(0.98); }
+
+  /* ── ACTIVE TRADE ───────────────────────────── */
+  .trade-card {
+    background: var(--bg3); border-radius: 9px; padding: 12px;
+    margin-bottom: 8px; border-left: 3px solid var(--green); display:none;
+  }
+  .trade-card.short { border-left-color: var(--red); }
+  .trade-card.active { display: block; }
+  .trade-dir { font-size: 12px; font-weight: 800; letter-spacing: 1px; margin-bottom: 9px; }
+  .td-long { color: var(--green); } .td-short { color: var(--red); }
+  .trade-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+  .trade-key { font-size:10px; color:var(--text2); }
+  .trade-val { font-family:var(--mono); font-size:12px; font-weight:500; }
+  .pnl-bar-wrap { height:3px; background:var(--border); border-radius:2px; margin-top:9px; overflow:hidden; }
+  .pnl-bar { height:100%; border-radius:2px; width:50%; background:var(--green); transition:width 0.3s,background 0.3s; }
+
+  /* ── LOG ────────────────────────────────────── */
+  .log-wrap {
+    height:200px; overflow-y:auto; font-family:var(--mono);
+    font-size:10.5px; line-height:1.75;
+    scrollbar-width:thin; scrollbar-color:var(--border2) transparent;
+  }
+  .le { padding:2px 0; border-bottom:1px solid rgba(255,255,255,0.025); }
+  .le .ts { color:var(--text3); margin-right:7px; }
+  .le.buy .msg  { color:var(--green); }
+  .le.sell .msg { color:var(--red); }
+  .le.win .msg  { color:var(--yellow); }
+  .le.info .msg { color:var(--text2); }
+  .le.sl .msg   { color:#ff6b6b; }
+
+  /* ── TG BADGE ───────────────────────────────── */
+  #tgBadge {
+    font-size:9px; padding:2px 8px; border-radius:4px;
+    background:rgba(255,23,68,0.12); color:var(--red);
+    font-weight:700; letter-spacing:0.5px;
+  }
+
+  /* ── QUOTE TICKER ───────────────────────────── */
+  .quote-bar {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    padding: 6px 16px; border-top: 1px solid var(--border);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  @keyframes flash-g { 0%,100%{background:var(--bg2)} 50%{background:rgba(0,230,118,0.07)} }
+  @keyframes flash-r { 0%,100%{background:var(--bg2)} 50%{background:rgba(255,23,68,0.07)} }
+  .flash-g { animation: flash-g 0.5s; }
+  .flash-r { animation: flash-r 0.5s; }
+
+  ::-webkit-scrollbar { width:3px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">BOS/MSS BOT</div>
+    <div class="pair-tag">BTCUSDT.P · BINANCE</div>
+    <div style="font-size:11px;color:var(--text2);">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Connecting...</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div class="price-big" id="livePrice">---.--</div>
+    <div style="font-family:var(--mono);font-size:11px;" id="priceChange">--</div>
+  </div>
+</div>
+
+<!-- METRICS -->
+<div class="metrics-row">
+  <div class="mc"><div class="mc-label">Balance</div><div class="mc-val blue" id="mBalance">$1,000.00</div></div>
+  <div class="mc"><div class="mc-label">Unrealized P&L</div><div class="mc-val" id="mUPnL">$0.00</div></div>
+  <div class="mc"><div class="mc-label">Total P&L</div><div class="mc-val" id="mTPnL">$0.00</div></div>
+  <div class="mc"><div class="mc-label">Win Rate</div><div class="mc-val yellow" id="mWinRate">0%</div></div>
+</div>
+
+<!-- MAIN -->
+<div class="main-grid">
+
+  <!-- LEFT -->
+  <div style="display:flex;flex-direction:column;gap:12px;">
+
+    <!-- Chart -->
+    <div class="panel">
+      <div class="ph">
+        <span>Live Price · BTCUSDT Perp</span>
+        <span id="chartInfo" style="font-family:var(--mono);font-size:10px;color:var(--text3);">-- ticks</span>
+      </div>
+      <div style="padding:8px 12px 6px;">
+        <canvas id="miniChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Structure -->
+    <div class="panel">
+      <div class="ph">
+        <span>Structure Signals</span>
+        <span id="swingInfo" style="font-family:var(--mono);font-size:10px;">Swing: 7</span>
+      </div>
+      <div class="pb" style="padding:8px 14px;">
+        <div class="structure-log" id="structureLog"></div>
+      </div>
+    </div>
+
+    <!-- Trade History -->
+    <div class="panel">
+      <div class="ph">
+        <span>Trade History</span>
+        <span id="tradeCount" style="font-family:var(--mono);font-size:10px;">0 trades</span>
+      </div>
+      <div class="pb" style="padding:0;">
+        <div class="trades-wrap">
+          <table class="trades-table">
+            <thead>
+              <tr><th>Dir</th><th>Entry</th><th>Exit</th><th>SL</th><th>TP 1:3</th><th>P&L</th><th>Result</th></tr>
+            </thead>
+            <tbody id="tradesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT -->
+  <div style="display:flex;flex-direction:column;gap:12px;">
+
+    <!-- Settings -->
+    <div class="panel">
+      <div class="ph">Settings</div>
+      <div class="pb">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px;">
+          <div class="cg"><label>Balance ($)</label><input type="number" id="ctrlBalance" value="1000" min="100" step="100"></div>
+          <div class="cg"><label>Risk %</label><input type="number" id="ctrlRisk" value="2" min="0.1" max="100" step="0.1"></div>
+          <div class="cg"><label>Swing Length</label><input type="number" id="ctrlSwing" value="7" min="1" max="50"></div>
+          <div class="cg"><label>Leverage</label><input type="number" id="ctrlLeverage" value="1" min="1" max="100"></div>
+        </div>
+        <button class="btn btn-gh" onclick="applySettings()" style="margin-bottom:6px;">Apply Settings</button>
+        <button class="btn btn-gh" onclick="exportCSV()" style="margin-bottom:6px;background:rgba(68,138,255,0.1);color:var(--blue);border-color:rgba(68,138,255,0.25);">⬇ Export CSV</button>
+        <button class="btn btn-gh" onclick="resetBot()" style="font-size:11px;padding:6px;opacity:0.55;">Reset Simulation</button>
+        <button class="btn btn-gh" onclick="clearStorage()" style="font-size:11px;padding:6px;margin-top:4px;opacity:0.35;color:var(--red);">🗑 Clear Data</button>
+      </div>
+    </div>
+
+    <!-- Telegram -->
+    <div class="panel" id="tgPanel">
+      <div class="ph" style="cursor:pointer;" onclick="toggleTgPanel()">
+        <span>🔔 Telegram Alerts</span>
+        <span id="tgBadge">OFF</span>
+      </div>
+      <div class="pb" id="tgPanelBody">
+        <div class="cg"><label>Bot Token</label>
+          <input type="text" id="tgToken" placeholder="7412345678:AAFxyz...">
+        </div>
+        <div class="cg"><label>Channel / Chat ID</label>
+          <input type="text" id="tgChatId" placeholder="-1001234567890">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+          <button class="btn btn-gh" onclick="saveTgConfig()" style="background:rgba(0,200,83,0.1);color:var(--green);border-color:rgba(0,200,83,0.25);">✓ Save & Enable</button>
+          <button class="btn btn-gh" onclick="testTgAlert()" style="font-size:11px;">📨 Test</button>
+        </div>
+        <div style="font-size:10px;color:var(--text3);line-height:1.6;">
+          Add bot as Admin to channel.<br>
+          Get Chat ID: api.telegram.org/bot<b style="color:var(--text2)">TOKEN</b>/getUpdates
+        </div>
+      </div>
+    </div>
+
+    <!-- Firebase Settings -->
+    <div class="panel" id="fbPanel">
+      <div class="ph" style="cursor:pointer;" onclick="toggleFbPanel()">
+        <span>🔥 Firebase Config</span>
+        <span id="fbBadge" style="font-size:9px;padding:2px 8px;border-radius:4px;font-weight:700;background:rgba(255,23,68,0.12);color:var(--red);">NOT SET</span>
+      </div>
+      <div class="pb" id="fbPanelBody" style="display:none;">
+        <div style="font-size:10px;color:var(--yellow);margin-bottom:10px;line-height:1.6;padding:6px 8px;background:rgba(255,214,0,0.06);border-radius:6px;border:1px solid rgba(255,214,0,0.15);">
+          ⚠️ Never put API keys in code.<br>Enter once here — stored only in your browser.
+        </div>
+        <div class="cg"><label>API Key</label><input type="password" id="fb_apiKey" placeholder="AIzaSy..."></div>
+        <div class="cg"><label>Auth Domain</label><input type="text" id="fb_authDomain" placeholder="your-app.firebaseapp.com"></div>
+        <div class="cg"><label>Database URL</label><input type="text" id="fb_databaseURL" placeholder="https://your-app-rtdb.firebaseio.com"></div>
+        <div class="cg"><label>Project ID</label><input type="text" id="fb_projectId" placeholder="your-app"></div>
+        <div class="cg"><label>Storage Bucket</label><input type="text" id="fb_storageBucket" placeholder="your-app.appspot.com"></div>
+        <div class="cg"><label>Messaging Sender ID</label><input type="text" id="fb_messagingSenderId" placeholder="123456789"></div>
+        <div class="cg"><label>App ID</label><input type="text" id="fb_appId" placeholder="1:123:web:abc..."></div>
+        <button class="btn btn-gh" onclick="saveFbConfig()" style="background:rgba(255,152,0,0.1);color:#ffb300;border-color:rgba(255,152,0,0.25);margin-bottom:6px;">💾 Save & Reload</button>
+        <button class="btn btn-gh" onclick="clearFbConfig()" style="font-size:11px;padding:6px;opacity:0.45;color:var(--red);">🗑 Clear Firebase Config</button>
+        <div style="margin-top:8px;font-size:10px;color:var(--text3);line-height:1.5;">
+          Get these from Firebase Console<br>→ Project Settings → Your Apps → Config
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Trade -->
+    <div class="panel">
+      <div class="ph">Active Trade</div>
+      <div class="pb" style="padding:10px 12px;">
+        <div class="trade-card" id="tradeCard">
+          <div class="trade-dir" id="tradeDirLabel">LONG</div>
+          <div class="trade-row"><span class="trade-key">Entry</span><span class="trade-val" id="tradeEntry">--</span></div>
+          <div class="trade-row"><span class="trade-key">Current</span><span class="trade-val" id="tradeCurrent">--</span></div>
+          <div class="trade-row"><span class="trade-key">SL</span><span class="trade-val" id="tradeSL" style="color:var(--red)">--</span></div>
+          <div class="trade-row"><span class="trade-key">TP (1:3)</span><span class="trade-val" id="tradeTP" style="color:var(--green)">--</span></div>
+          <div class="trade-row"><span class="trade-key">Size</span><span class="trade-val" id="tradeSize">--</span></div>
+          <div class="trade-row"><span class="trade-key">P&L</span><span class="trade-val" id="tradePnL">$0.00</span></div>
+          <div class="pnl-bar-wrap"><div class="pnl-bar" id="pnlBar"></div></div>
+        </div>
+        <div id="noTradeMsg" style="text-align:center;color:var(--text3);font-size:11px;padding:18px 0;">
+          Waiting for signal...
+        </div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="panel" style="flex:1;">
+      <div class="ph">Activity Log</div>
+      <div class="pb" style="padding:8px 12px;">
+        <div class="log-wrap" id="activityLog"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, push, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// Firebase config loaded from localStorage — never hardcoded in source
+const firebaseConfig = {
+  apiKey:            localStorage.getItem('fb_apiKey')            || '',
+  authDomain:        localStorage.getItem('fb_authDomain')        || '',
+  databaseURL:       localStorage.getItem('fb_databaseURL')       || '',
+  projectId:         localStorage.getItem('fb_projectId')         || '',
+  storageBucket:     localStorage.getItem('fb_storageBucket')     || '',
+  messagingSenderId: localStorage.getItem('fb_messagingSenderId') || '',
+  appId:             localStorage.getItem('fb_appId')             || '',
+};
+
+const fbConfigReady = !!(firebaseConfig.apiKey && firebaseConfig.databaseURL && firebaseConfig.projectId);
+let db = null;
+if (fbConfigReady) {
+  try {
+    const fbApp = initializeApp(firebaseConfig);
+    db = getDatabase(fbApp);
+  } catch(e) { console.warn('Firebase init failed:', e.message); }
+}
+
+window.fbSaveTrade = async function(trade) {
+  if (!db) return;
+  try { await push(ref(db, 'trades'), trade); } catch(e) {}
+};
+window.fbSaveStats = async function(stats) {
+  if (!db) return;
+  try { await set(ref(db, 'stats'), stats); } catch(e) {}
+};
+window.fbLoadAll = async function(onTrades, onStats) {
+  if (!db) { onTrades([]); return; }
+  try {
+    const statsSnap = await get(ref(db, 'stats'));
+    if (statsSnap.exists()) onStats(statsSnap.val());
+    onValue(ref(db, 'trades'), snap => {
+      const data = snap.val();
+      onTrades(data ? Object.values(data) : []);
+    });
+  } catch(e) {}
+};
+window.fbConfigReady = fbConfigReady;
+window.fbReady = true;
+window.dispatchEvent(new Event('fb-ready'));
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  TRADING QUOTES — sent with every signal
+// ═══════════════════════════════════════════════════════════
+const QUOTES = [
+  '📖 The trend is your friend until the bend at the end. — Ed Seykota',
+  '🧠 Cut your losses short and let your profits run. — Jesse Livermore',
+  '🎯 Risk comes from not knowing what you are doing. — Warren Buffett',
+  '⚡ In trading, the hardest thing is to sit on your hands. — Michael Marcus',
+  '🔥 The market can stay irrational longer than you can stay solvent. — Keynes',
+  '🏆 Every loss is a lesson. Every win is a confirmation. — Anonymous Trader',
+  '🌊 Do not fight the tape. Trade what you see, not what you think. — Larry Williams',
+  '💎 Protect your capital first. Profits will follow. — Paul Tudor Jones',
+  '🧩 Trade the setup, not the outcome. — Mark Douglas',
+  '🎲 Good trading is about being wrong as fast as possible. — Tom Basso',
+  '📐 Structure is the language of the market. — ICT Concept',
+  '🌟 Patience is the most underrated edge in trading. — Anonymous',
+  '🔑 One good trade at a time. That is all it takes. — Anonymous Trader',
+  '⚖️ Risk management is everything. The trade is secondary. — Anonymous',
+  '🚀 BOS forms the foundation. MSS flips the story. — SMC Concept',
+  '🏄 Ride the momentum, respect the structure. — Anonymous',
+  '🎵 The market whispers in candles. Learn to listen. — Anonymous Trader',
+  '💡 1:3 RR means you can be wrong 3 times and still break even. — Math',
+  '🔭 Higher timeframe context, lower timeframe entry. — SMC Rule',
+  '🛡️ A trader who manages risk is never truly defeated. — Anonymous',
+];
+
+function randomQuote() {
+  return QUOTES[Math.floor(Math.random() * QUOTES.length)];
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FIREBASE CONFIG UI
+// ═══════════════════════════════════════════════════════════
+const FB_KEYS = ['apiKey','authDomain','databaseURL','projectId','storageBucket','messagingSenderId','appId'];
+
+function toggleFbPanel() {
+  const b = document.getElementById('fbPanelBody');
+  b.style.display = b.style.display === 'none' ? '' : 'none';
+}
+
+function saveFbConfig() {
+  let allFilled = true;
+  FB_KEYS.forEach(k => {
+    const val = (document.getElementById('fb_' + k) || {value:''}).value.trim();
+    if (val) localStorage.setItem('fb_' + k, val);
+    else allFilled = false;
+  });
+  if (!allFilled) { alert('Please fill in all Firebase fields.'); return; }
+  alert('Firebase config saved! Reloading page to connect...');
+  location.reload();
+}
+
+function clearFbConfig() {
+  if (!confirm('Clear Firebase config from browser?')) return;
+  FB_KEYS.forEach(k => localStorage.removeItem('fb_' + k));
+  location.reload();
+}
+
+function initFbBadge() {
+  // Pre-fill inputs from localStorage
+  FB_KEYS.forEach(k => {
+    const el = document.getElementById('fb_' + k);
+    if (el) el.value = localStorage.getItem('fb_' + k) || '';
+  });
+  const badge = document.getElementById('fbBadge');
+  const ready = window.fbConfigReady;
+  if (ready) {
+    badge.style.background = 'rgba(0,200,83,0.12)';
+    badge.style.color = 'var(--green)';
+    badge.textContent = 'CONNECTED';
+  } else {
+    badge.style.background = 'rgba(255,152,0,0.12)';
+    badge.style.color = '#ffb300';
+    badge.textContent = 'NOT SET';
+    // Auto-open panel if not configured
+    document.getElementById('fbPanelBody').style.display = '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TELEGRAM
+// ═══════════════════════════════════════════════════════════
+let tgToken  = localStorage.getItem('tg_token')  || '';
+let tgChatId = localStorage.getItem('tg_chatid') || '';
+let tgEnabled = !!(tgToken && tgChatId);
+
+function toggleTgPanel() {
+  const b = document.getElementById('tgPanelBody');
+  b.style.display = b.style.display === 'none' ? '' : 'none';
+}
+
+function saveTgConfig() {
+  tgToken  = document.getElementById('tgToken').value.trim();
+  tgChatId = document.getElementById('tgChatId').value.trim();
+  if (!tgToken || !tgChatId) { alert('Enter both Token and Chat ID'); return; }
+  localStorage.setItem('tg_token',  tgToken);
+  localStorage.setItem('tg_chatid', tgChatId);
+  tgEnabled = true;
+  updateTgBadge();
+  addLog('info', '✅ Telegram enabled · ' + tgChatId);
+}
+
+function updateTgBadge() {
+  const b = document.getElementById('tgBadge');
+  if (tgEnabled) {
+    b.style.background = 'rgba(0,200,83,0.12)';
+    b.style.color = 'var(--green)';
+    b.textContent = 'ON';
+  } else {
+    b.style.background = 'rgba(255,23,68,0.12)';
+    b.style.color = 'var(--red)';
+    b.textContent = 'OFF';
+  }
+}
+
+async function sendTelegram(msg) {
+  if (!tgEnabled || !tgToken || !tgChatId) return;
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: tgChatId,
+        text: msg,
+        parse_mode: 'HTML',
+        disable_web_page_preview: false
+      })
+    });
+    const data = await resp.json();
+    if (!data.ok) addLog('info', '⚠️ TG: ' + (data.description || 'error'));
+  } catch(e) {
+    addLog('info', '⚠️ TG failed: ' + e.message);
+  }
+}
+
+// Send message WITH chart image using QuickChart.io
+async function sendTelegramPhoto(caption, chartUrl) {
+  if (!tgEnabled || !tgToken || !tgChatId) return;
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${tgToken}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: tgChatId,
+        photo: chartUrl,
+        caption: caption,
+        parse_mode: 'HTML'
+      })
+    });
+    const data = await resp.json();
+    if (!data.ok) {
+      // Fallback to text if photo fails
+      addLog('info', '⚠️ TG photo failed, sending text only');
+      await sendTelegram(caption);
+    }
+  } catch(e) {
+    await sendTelegram(caption);
+  }
+}
+
+// Build QuickChart URL for price sparkline with SL/TP lines
+function buildChartUrl(priceData, entry, sl, tp, dir) {
+  const labels = priceData.map((_,i) => '');
+  const color  = dir === 'LONG' ? 'rgba(0,230,118,0.9)' : 'rgba(255,23,68,0.9)';
+
+  // Annotations: horizontal lines for Entry, SL, TP
+  const annotations = {
+    entry_line: { type:'line', yMin:entry, yMax:entry, borderColor:'rgba(255,214,0,0.9)', borderWidth:2, borderDash:[6,4], label:{enabled:true,content:'Entry',position:'end',font:{size:10}} },
+    sl_line:    { type:'line', yMin:sl,    yMax:sl,    borderColor:'rgba(255,23,68,0.9)',  borderWidth:2, borderDash:[6,4], label:{enabled:true,content:'SL',position:'end',font:{size:10}} },
+    tp_line:    { type:'line', yMin:tp,    yMax:tp,    borderColor:'rgba(0,230,118,0.9)', borderWidth:2, borderDash:[6,4], label:{enabled:true,content:'TP',position:'end',font:{size:10}} },
+  };
+
+  const cfg = {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: priceData,
+        borderColor: color,
+        backgroundColor: dir==='LONG' ? 'rgba(0,230,118,0.08)' : 'rgba(255,23,68,0.08)',
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { display: false },
+        annotation: { annotations }
+      },
+      scales: {
+        x: { display: false },
+        y: { display: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#7986a3', font: { size: 9 } } }
+      },
+      backgroundColor: '#0d1117'
+    }
+  };
+
+  const encoded = encodeURIComponent(JSON.stringify(cfg));
+  return `https://quickchart.io/chart?c=${encoded}&w=600&h=300&bkg=%230d1117&f=JetBrains+Mono`;
+}
+
+async function testTgAlert() {
+  tgToken  = document.getElementById('tgToken').value.trim();
+  tgChatId = document.getElementById('tgChatId').value.trim();
+  if (!tgToken || !tgChatId) { alert('Enter Token and Chat ID first'); return; }
+  tgEnabled = true;
+  const msg =
+`✅ <b>BOS/MSS Bot — Connected!</b>
+
+🪙 <b>BTCUSDT Perpetual · BINANCE</b>
+🤖 Bot is live and scanning 1-minute structure.
+
+<b>Signal Types:</b>
+📍 BOS + MSS Window Entry
+📍 Full Structure Cover Entry
+
+<b>Risk Management:</b>
+🛑 SL = Lowest/Highest wick in range
+🎯 TP = Fixed 1:3 Risk:Reward
+
+${randomQuote()}
+
+⏱ <i>${new Date().toUTCString()}</i>`;
+  await sendTelegram(msg);
+  addLog('info', '📨 Test alert sent');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CORE BOT STATE
+// ═══════════════════════════════════════════════════════════
+const WS_URL = 'wss://fstream.binance.com/stream?streams=btcusdt@aggTrade/btcusdt@kline_1m';
+
+let balance = 1000, startBalance = 1000;
+let riskPct = 2, swingLen = 7, leverage = 1;
+let totalPnL = 0, wins = 0, losses = 0;
+let activeTrade = null, tradeHistory = [];
+let lastPrice = 0;
+
+// Structure state (mirrors Pine Script logic)
+let swingHigh = null, swingHighBar = -1;
+let swingLow  = null, swingLowBar  = -1;
+let shPending = false, slPending = false;
+let lastStruct = 0;
+
+// Window (Type A)
+let winDir = 0, winStart = -1, winEnd = -1, winHigh = null, winLow = null;
+
+// Wick tracking for SL (absolute lowest/highest between structure bars)
+let wickLow  = null; // tracks lowest low after win_dir=-1 set
+let wickHigh = null; // tracks highest high after win_dir=1 set
+
+// Full cover (Type B)
+let fcBullBosLow  = null, fcBullBosBar  = -1, fcBullHighTrack = null;
+let fcBearBosHigh = null, fcBearBosBar  = -1, fcBearLowTrack  = null;
+
+let bars = [], barIndex = 0;
+let priceHistory = [];
+const CHART_MAX = 80;
+
+let ws = null;
+
+// ═══════════════════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════════════════
+function applySettings() {
+  balance      = parseFloat(document.getElementById('ctrlBalance').value)  || 1000;
+  startBalance = balance;
+  riskPct      = parseFloat(document.getElementById('ctrlRisk').value)     || 2;
+  swingLen     = parseInt(document.getElementById('ctrlSwing').value)      || 7;
+  leverage     = parseFloat(document.getElementById('ctrlLeverage').value) || 1;
+  document.getElementById('swingInfo').textContent = 'Swing: ' + swingLen;
+  updateMetrics();
+  addLog('info', `Settings applied · Balance: $${balance.toFixed(2)} · Risk: ${riskPct}% · Swing: ${swingLen}`);
+}
+
+function resetBot() {
+  balance = parseFloat(document.getElementById('ctrlBalance').value) || 1000;
+  startBalance = balance;
+  totalPnL = 0; wins = 0; losses = 0;
+  activeTrade = null; tradeHistory = [];
+  bars = []; barIndex = 0;
+  swingHigh=null; swingHighBar=-1; swingLow=null; swingLowBar=-1;
+  shPending=false; slPending=false; lastStruct=0;
+  winDir=0; winStart=-1; winEnd=-1; winHigh=null; winLow=null;
+  wickLow=null; wickHigh=null;
+  fcBullBosLow=null; fcBullBosBar=-1; fcBullHighTrack=null;
+  fcBearBosHigh=null; fcBearBosBar=-1; fcBearLowTrack=null;
+  document.getElementById('tradesBody').innerHTML = '';
+  document.getElementById('structureLog').innerHTML = '';
+  document.getElementById('activityLog').innerHTML = '';
+  document.getElementById('tradeCard').classList.remove('active');
+  document.getElementById('noTradeMsg').style.display = 'block';
+  priceHistory = [];
+  updateMetrics();
+  addLog('info', 'Simulation reset');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  WEBSOCKET
+// ═══════════════════════════════════════════════════════════
+function connect() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen  = () => { setStatus(true);  addLog('info', 'Connected · BTCUSDT.P WebSocket'); };
+  ws.onclose = () => { setStatus(false); setTimeout(connect, 3000); };
+  ws.onerror = () => { setStatus(false); };
+  ws.onmessage = (e) => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.stream?.includes('aggTrade')) onTick(d.data);
+      if (d.stream?.includes('kline'))    onKline(d.data);
+    } catch(_) {}
+  };
+}
+
+function setStatus(live) {
+  document.getElementById('statusDot').className   = 'status-dot' + (live ? ' live' : '');
+  document.getElementById('statusText').textContent = live ? 'Live' : 'Disconnected';
+}
+
+function onTick(d) {
+  const price = parseFloat(d.p);
+  if (!price) return;
+  const prev = lastPrice;
+  lastPrice  = price;
+  priceHistory.push(price);
+  if (priceHistory.length > CHART_MAX) priceHistory.shift();
+
+  const el = document.getElementById('livePrice');
+  el.textContent = price.toFixed(2);
+  el.style.color = price > prev ? '#00e676' : price < prev ? '#ff1744' : '#e8eaf6';
+
+  const chg = priceHistory.length > 1 ? ((price - priceHistory[0]) / priceHistory[0] * 100) : 0;
+  const ce  = document.getElementById('priceChange');
+  ce.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(3) + '%';
+  ce.style.color = chg >= 0 ? '#00e676' : '#ff1744';
+
+  drawMiniChart();
+  checkActiveTrade(price);
+  updateMetrics();
+}
+
+function onKline(d) {
+  const k = d.k;
+  if (!k || !k.x) return; // only closed candles
+  const bar = { t:k.t, o:parseFloat(k.o), h:parseFloat(k.h), l:parseFloat(k.l), c:parseFloat(k.c) };
+  bars.push(bar);
+  barIndex++;
+  processBar(bar, barIndex - 1);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BAR PROCESSING — mirrors Pine Script v10 logic
+// ═══════════════════════════════════════════════════════════
+function processBar(bar, idx) {
+  // Update wick trackers every bar
+  if (winDir === -1 && winEnd >= 0 && idx >= winEnd) {
+    wickLow = wickLow === null ? bar.l : Math.min(wickLow, bar.l);
+  }
+  if (winDir === 1 && winEnd >= 0 && idx >= winEnd) {
+    wickHigh = wickHigh === null ? bar.h : Math.max(wickHigh, bar.h);
+  }
+  // Full cover trackers
+  if (fcBullBosBar >= 0 && idx >= fcBullBosBar) {
+    fcBullHighTrack = fcBullHighTrack === null ? bar.h : Math.max(fcBullHighTrack, bar.h);
+  }
+  if (fcBearBosBar >= 0 && idx >= fcBearBosBar) {
+    fcBearLowTrack = fcBearLowTrack === null ? bar.l : Math.min(fcBearLowTrack, bar.l);
+  }
+
+  // Pivot detection (needs swingLen bars on both sides)
+  if (idx >= swingLen) {
+    const phIdx = idx - swingLen;
+    const ph = getPivotHigh(phIdx);
+    const pl = getPivotLow(phIdx);
+    if (ph !== null) { swingHigh = ph; swingHighBar = phIdx; shPending = true; }
+    if (pl !== null) { swingLow  = pl; swingLowBar  = phIdx; slPending = true; }
+  }
+
+  const close = bar.c;
+
+  // Bull break
+  if (shPending && swingHigh !== null && close > swingHigh) {
+    shPending = false;
+    const isMSS = lastStruct === -1;
+    onBullBreak(idx, swingHigh, swingHighBar, isMSS, bar);
+    lastStruct = 1;
+  }
+  // Bear break
+  if (slPending && swingLow !== null && close < swingLow) {
+    slPending = false;
+    const isMSS = lastStruct === 1;
+    onBearBreak(idx, swingLow, swingLowBar, isMSS, bar);
+    lastStruct = -1;
+  }
+}
+
+function getPivotHigh(idx) {
+  if (idx < swingLen || idx + swingLen >= bars.length) return null;
+  const val = bars[idx].h;
+  for (let i = idx - swingLen; i <= idx + swingLen; i++) {
+    if (i !== idx && bars[i] && bars[i].h >= val) return null;
+  }
+  return val;
+}
+
+function getPivotLow(idx) {
+  if (idx < swingLen || idx + swingLen >= bars.length) return null;
+  const val = bars[idx].l;
+  for (let i = idx - swingLen; i <= idx + swingLen; i++) {
+    if (i !== idx && bars[i] && bars[i].l <= val) return null;
+  }
+  return val;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BREAK HANDLERS
+// ═══════════════════════════════════════════════════════════
+function onBullBreak(idx, level, pivotBar, isMSS, bar) {
+  addStructureSignal(isMSS ? 'MSS ▲' : 'BOS ▲', level, 'bull');
+
+  // Type A: window MSS BUY
+  const longInWin = isMSS && winDir === -1 && pivotBar >= winStart && pivotBar <= winEnd;
+
+  // Type B: full cover BUY — bull break sweeps above bearish BOS high
+  const fullCoverBuy = fcBearBosHigh !== null && swingHigh > fcBearBosHigh;
+
+  if (longInWin && activeTrade === null) {
+    const sl = wickLow !== null ? wickLow : (swingLow || bar.l);
+    enterTrade('LONG', level, sl, 'MSS Window');
+  } else if (fullCoverBuy && !longInWin && activeTrade === null) {
+    const sl = fcBearLowTrack !== null ? fcBearLowTrack : bar.l;
+    enterTrade('LONG', level, sl, 'Full Cover');
+    fcBearBosHigh = null; fcBearBosBar = -1; fcBearLowTrack = null;
+  }
+
+  // KEY FIX: after any bull break, it becomes new window dir=1
+  winDir   = 1;
+  winStart = pivotBar;
+  winEnd   = idx;
+  winHigh  = swingHigh;
+  winLow   = swingLow;
+  wickHigh = null;
+  wickLow  = null;
+
+  // Save for full cover SELL detection
+  fcBullBosLow   = swingLow;
+  fcBullBosBar   = idx;
+  fcBullHighTrack = null;
+}
+
+function onBearBreak(idx, level, pivotBar, isMSS, bar) {
+  addStructureSignal(isMSS ? 'MSS ▼' : 'BOS ▼', level, 'bear');
+
+  // Type A: window MSS SELL
+  const shortInWin = isMSS && winDir === 1 && pivotBar >= winStart && pivotBar <= winEnd;
+
+  // Type B: full cover SELL — bear break sweeps below bullish BOS low
+  const fullCoverSell = fcBullBosLow !== null && swingLow < fcBullBosLow;
+
+  if (shortInWin && activeTrade === null) {
+    const sl = wickHigh !== null ? wickHigh : (swingHigh || bar.h);
+    enterTrade('SHORT', level, sl, 'MSS Window');
+  } else if (fullCoverSell && !shortInWin && activeTrade === null) {
+    const sl = fcBullHighTrack !== null ? fcBullHighTrack : bar.h;
+    enterTrade('SHORT', level, sl, 'Full Cover');
+    fcBullBosLow = null; fcBullBosBar = -1; fcBullHighTrack = null;
+  }
+
+  // KEY FIX: after any bear break, it becomes new window dir=-1
+  winDir   = -1;
+  winStart = pivotBar;
+  winEnd   = idx;
+  winHigh  = swingHigh;
+  winLow   = swingLow;
+  wickLow  = null;
+  wickHigh = null;
+
+  // Save for full cover BUY detection
+  fcBearBosHigh  = swingHigh;
+  fcBearBosBar   = idx;
+  fcBearLowTrack = null;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ENTER TRADE
+// ═══════════════════════════════════════════════════════════
+function enterTrade(dir, entry, sl, type) {
+  if (!sl || !entry) return;
+  const slDist = Math.abs(entry - sl);
+  if (slDist <= 0) return;
+  const riskAmt = balance * (riskPct / 100);
+  const size    = (riskAmt / slDist) * leverage;
+  const tp      = dir === 'LONG' ? entry + slDist * 3 : entry - slDist * 3;
+
+  activeTrade = { dir, entry, sl, tp, size, type, openTime: Date.now() };
+
+  const dirClass = dir === 'LONG' ? 'buy' : 'sell';
+  addLog(dirClass, `${dir} [${type}] · Entry: ${entry.toFixed(2)} · SL: ${sl.toFixed(2)} · TP: ${tp.toFixed(2)}`);
+
+  // ── TELEGRAM SIGNAL WITH CHART IMAGE ──────────────────
+  const emoji    = dir === 'LONG' ? '🟢' : '🔴';
+  const dirLabel = dir === 'LONG' ? '📈 BUY' : '📉 SELL';
+  const slDist2  = Math.abs(entry - sl).toFixed(2);
+  const tpDist   = Math.abs(tp - entry).toFixed(2);
+  const slLabel  = dir === 'LONG' ? 'Lowest wick in range' : 'Highest wick in range';
+  const quote    = randomQuote();
+
+  const caption =
+`${emoji} <b>New Signal — ${dirLabel}</b>
+<b>Type: ${type}</b>
+
+🪙 <b>BTCUSDT Perpetual · BINANCE</b>
+
+📍 Entry:  <code>${entry.toFixed(2)}</code>
+🛑 SL:     <code>${sl.toFixed(2)}</code>  (${slLabel})
+🎯 TP:     <code>${tp.toFixed(2)}</code>  (1:3 RR)
+
+📏 Risk:   ${slDist2} pts
+📏 Reward: ${tpDist} pts
+⚖️ RR:     <b>1 : 3</b>
+
+${quote}
+
+⏱ <i>${new Date().toUTCString()}</i>`;
+
+  // Build chart with last 60 price points + levels
+  const chartData = priceHistory.slice(-60);
+  if (chartData.length >= 5) {
+    const chartUrl = buildChartUrl(chartData, entry, sl, tp, dir);
+    sendTelegramPhoto(caption, chartUrl);
+  } else {
+    sendTelegram(caption);
+  }
+
+  // Update UI
+  document.getElementById('tradeCard').className    = `trade-card active${dir==='SHORT'?' short':''}`;
+  document.getElementById('tradeDirLabel').className = `trade-dir ${dir==='LONG'?'td-long':'td-short'}`;
+  document.getElementById('tradeDirLabel').textContent = (dir==='LONG'?'▲':'▼') + ' ' + dir;
+  document.getElementById('tradeEntry').textContent = entry.toFixed(2);
+  document.getElementById('tradeSL').textContent    = sl.toFixed(2);
+  document.getElementById('tradeTP').textContent    = tp.toFixed(2);
+  document.getElementById('tradeSize').textContent  = size.toFixed(4) + ' BTC';
+  document.getElementById('noTradeMsg').style.display = 'none';
+
+  const body = document.getElementById('tradesBody');
+  const row  = document.createElement('tr');
+  row.id = 'trade-open';
+  row.innerHTML = `
+    <td style="color:${dir==='LONG'?'var(--green)':'var(--red)'};font-weight:700">${dir}</td>
+    <td>${entry.toFixed(2)}</td><td>—</td>
+    <td style="color:var(--red)">${sl.toFixed(2)}</td>
+    <td style="color:var(--green)">${tp.toFixed(2)}</td>
+    <td id="open-pnl">$0.00</td>
+    <td><span class="tag to">OPEN</span></td>`;
+  body.insertBefore(row, body.firstChild);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CHECK ACTIVE TRADE
+// ═══════════════════════════════════════════════════════════
+function checkActiveTrade(price) {
+  if (!activeTrade) return;
+  const t = activeTrade;
+  let pnl = t.dir === 'LONG' ? (price - t.entry) * t.size : (t.entry - price) * t.size;
+
+  document.getElementById('tradeCurrent').textContent = price.toFixed(2);
+  document.getElementById('tradePnL').textContent = (pnl>=0?'+':'') + '$' + pnl.toFixed(2);
+  document.getElementById('tradePnL').style.color = pnl>=0?'var(--green)':'var(--red)';
+  const pct = Math.max(0, Math.min(100, 50 + (pnl / (balance * riskPct / 100)) * 50));
+  document.getElementById('pnlBar').style.width = pct + '%';
+  document.getElementById('pnlBar').style.background = pnl>=0?'var(--green)':'var(--red)';
+  const openEl = document.getElementById('open-pnl');
+  if (openEl) openEl.textContent = (pnl>=0?'+':'') + '$' + pnl.toFixed(2);
+  document.getElementById('mUPnL').textContent = (pnl>=0?'+':'') + '$' + pnl.toFixed(2);
+  document.getElementById('mUPnL').style.color = pnl>=0?'var(--green)':'var(--red)';
+
+  if ((t.dir==='LONG' && price<=t.sl)||(t.dir==='SHORT' && price>=t.sl)) { closeTrade(t.sl, 'SL Hit'); return; }
+  if ((t.dir==='LONG' && price>=t.tp)||(t.dir==='SHORT' && price<=t.tp)) { closeTrade(t.tp, 'TP Hit 1:3'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CLOSE TRADE
+// ═══════════════════════════════════════════════════════════
+function closeTrade(exitPrice, reason) {
+  if (!activeTrade) return;
+  const t = activeTrade;
+  let pnl = t.dir==='LONG' ? (exitPrice-t.entry)*t.size : (t.entry-exitPrice)*t.size;
+
+  balance  += pnl;
+  totalPnL += pnl;
+  if (pnl >= 0) wins++; else losses++;
+
+  addLog(pnl>=0?'win':'sl', `CLOSED ${t.dir} · Exit: ${exitPrice.toFixed(2)} · P&L: ${pnl>=0?'+':''}$${pnl.toFixed(2)} · ${reason}`);
+
+  // ── TELEGRAM CLOSE ALERT WITH CHART IMAGE ──────────────
+  const closeEmoji  = pnl >= 0 ? '✅' : '❌';
+  const resultLabel = pnl >= 0 ? '🏆 TARGET HIT' : '🛑 STOPPED OUT';
+  const reasonLine  = reason === 'TP Hit 1:3' ? '🎯 TP Hit — 1:3 Reached'
+                    : reason === 'SL Hit'      ? '🛑 SL Hit — Stopped Out'
+                    : '🔄 ' + reason;
+  const pnlPct = ((pnl / (balance * riskPct / 100)) * 100).toFixed(1);
+  const quote   = randomQuote();
+
+  const caption =
+`${closeEmoji} <b>Trade Closed — ${resultLabel}</b>
+
+🪙 <b>BTCUSDT Perpetual · BINANCE</b>
+
+📌 Direction: <b>${t.dir}</b>  [${t.type || 'Signal'}]
+📍 Entry:  <code>${t.entry.toFixed(2)}</code>
+🚪 Exit:   <code>${exitPrice.toFixed(2)}</code>
+🛑 SL was: <code>${t.sl.toFixed(2)}</code>
+🎯 TP was: <code>${t.tp.toFixed(2)}</code>
+
+💰 P&amp;L: <b>${pnl>=0?'+':''}$${pnl.toFixed(2)}</b>
+${reasonLine}
+
+📊 Balance: <code>$${balance.toFixed(2)}</code>
+🏆 Wins: ${wins}  ❌ Losses: ${losses}
+
+${quote}
+
+⏱ <i>${new Date().toUTCString()}</i>`;
+
+  const chartData = priceHistory.slice(-60);
+  if (chartData.length >= 5) {
+    const chartUrl = buildChartUrl(chartData, t.entry, t.sl, t.tp, t.dir);
+    sendTelegramPhoto(caption, chartUrl);
+  } else {
+    sendTelegram(caption);
+  }
+
+  const closed = { ...t, exit: exitPrice, pnl, reason, closeTime: Date.now() };
+  tradeHistory.push(closed);
+  if (window.fbSaveTrade) window.fbSaveTrade({ dir:closed.dir, entry:closed.entry, sl:closed.sl, tp:closed.tp, exit:closed.exit, size:closed.size, pnl:closed.pnl, reason:closed.reason, openTime:closed.openTime, closeTime:closed.closeTime });
+  if (window.fbSaveStats)  window.fbSaveStats({ wins, losses, totalPnL, balance });
+
+  const row = document.getElementById('trade-open');
+  if (row) {
+    row.id = '';
+    row.cells[2].textContent = exitPrice.toFixed(2);
+    row.cells[5].textContent = (pnl>=0?'+':'') + '$' + pnl.toFixed(2);
+    row.cells[5].style.color = pnl>=0?'var(--green)':'var(--red)';
+    row.cells[6].innerHTML = `<span class="tag ${pnl>=0?'tw':'tl'}">${pnl>=0?'WIN':'LOSS'}</span>`;
+  }
+
+  activeTrade = null;
+  document.getElementById('tradeCard').classList.remove('active');
+  document.getElementById('noTradeMsg').style.display = 'block';
+  document.getElementById('mUPnL').textContent = '$0.00';
+  document.getElementById('mUPnL').style.color = 'var(--text)';
+  updateMetrics();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CHART
+// ═══════════════════════════════════════════════════════════
+function drawMiniChart() {
+  const canvas = document.getElementById('miniChart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 600, H = 175;
+  canvas.width = W; canvas.height = H;
+  ctx.clearRect(0,0,W,H);
+  const data = priceHistory;
+  if (data.length < 2) return;
+  const min = Math.min(...data)*0.9998, max = Math.max(...data)*1.0002;
+  const rng = max - min;
+  const toY = v => H - ((v-min)/rng)*(H-20) - 10;
+  const toX = i => (i/(data.length-1))*W;
+  const last = data[data.length-1], first = data[0];
+  const up = last >= first;
+
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0, up?'rgba(0,200,83,0.12)':'rgba(255,23,68,0.12)');
+  grad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath(); ctx.moveTo(toX(0),H);
+  data.forEach((v,i)=>ctx.lineTo(toX(i),toY(v)));
+  ctx.lineTo(toX(data.length-1),H); ctx.closePath();
+  ctx.fillStyle=grad; ctx.fill();
+
+  ctx.beginPath();
+  data.forEach((v,i)=>i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v)));
+  ctx.strokeStyle=up?'#00e676':'#ff1744'; ctx.lineWidth=1.5; ctx.stroke();
+
+  const lastY=toY(last);
+  ctx.beginPath(); ctx.setLineDash([3,3]);
+  ctx.moveTo(0,lastY); ctx.lineTo(W,lastY);
+  ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=1; ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (activeTrade) {
+    [[activeTrade.sl,'rgba(255,23,68,0.6)','SL'],[activeTrade.tp,'rgba(0,230,118,0.6)','TP']].forEach(([v,col,lbl])=>{
+      const y=toY(v);
+      if (y>0&&y<H) {
+        ctx.beginPath(); ctx.setLineDash([4,4]);
+        ctx.moveTo(0,y); ctx.lineTo(W,y);
+        ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.stroke(); ctx.setLineDash([]);
+        ctx.font='9px JetBrains Mono'; ctx.fillStyle=col.replace('0.6','1');
+        ctx.fillText(lbl+' '+v.toFixed(1), 6, y-3);
+      }
+    });
+  }
+  document.getElementById('chartInfo').textContent = data.length + ' ticks';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════════════
+function updateMetrics() {
+  document.getElementById('mBalance').textContent = '$' + balance.toFixed(2);
+  document.getElementById('mTPnL').textContent    = (totalPnL>=0?'+':'') + '$' + totalPnL.toFixed(2);
+  document.getElementById('mTPnL').style.color    = totalPnL>0?'var(--green)':totalPnL<0?'var(--red)':'var(--text)';
+  const total = wins + losses;
+  document.getElementById('mWinRate').textContent = total ? Math.round(wins/total*100) + '%' : '0%';
+  document.getElementById('tradeCount').textContent = total + ' trades';
+}
+
+function addLog(type, msg) {
+  const log = document.getElementById('activityLog');
+  const div = document.createElement('div');
+  div.className = 'le ' + type;
+  const now = new Date();
+  const ts  = now.toTimeString().slice(0,8);
+  div.innerHTML = `<span class="ts">${ts}</span><span class="msg">${msg}</span>`;
+  log.insertBefore(div, log.firstChild);
+  if (log.children.length > 200) log.removeChild(log.lastChild);
+}
+
+function addStructureSignal(label, price, side) {
+  const log = document.getElementById('structureLog');
+  const div = document.createElement('div');
+  div.className = 'struct-row';
+  const isMSS = label.includes('MSS');
+  const cls   = isMSS ? (side==='bull'?'sb-mb':'sb-mr') : (side==='bull'?'sb-bb':'sb-br');
+  div.innerHTML = `<span class="sbadge ${cls}">${label}</span><span class="struct-price">${price.toFixed(2)}</span>`;
+  log.insertBefore(div, log.firstChild);
+  if (log.children.length > 30) log.removeChild(log.lastChild);
+}
+
+function exportCSV() {
+  if (!tradeHistory.length) { alert('No trades yet.'); return; }
+  const hdr = 'Dir,Type,Entry,SL,TP,Exit,Size,PnL,Result,Reason,OpenTime,CloseTime\n';
+  const rows = tradeHistory.map(t => [
+    t.dir, t.type||'Signal',
+    t.entry.toFixed(2), t.sl.toFixed(2), t.tp.toFixed(2), t.exit.toFixed(2),
+    t.size.toFixed(6), t.pnl.toFixed(2),
+    t.pnl>=0?'WIN':'LOSS', t.reason,
+    new Date(t.openTime).toISOString(), new Date(t.closeTime).toISOString()
+  ].join(',')).join('\n');
+  const blob = new Blob([hdr+rows], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bos_mss_trades_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+function clearStorage() {
+  if (!confirm('Clear ALL saved Firebase data? Cannot be undone.')) return;
+  localStorage.removeItem('tg_token');
+  localStorage.removeItem('tg_chatid');
+  try {
+    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(({getDatabase,ref,remove})=>{
+      const db=getDatabase();
+      remove(ref(db,'trades')); remove(ref(db,'stats'));
+      addLog('info','🗑 Firebase cleared');
+      document.getElementById('tradesBody').innerHTML='';
+      tradeHistory=[]; wins=0; losses=0; totalPnL=0; updateMetrics();
+    });
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════
+//  HISTORY LOAD + SILENT REPLAY
+// ═══════════════════════════════════════════════════════════
+async function loadHistory() {
+  addLog('info', 'Fetching 200 historical 1m candles...');
+  document.getElementById('statusText').textContent = 'Loading history...';
+  try {
+    const resp = await fetch('https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=1m&limit=200');
+    const data = await resp.json();
+    if (!Array.isArray(data)) throw new Error('Bad response');
+    bars = data.map(k=>({t:k[0],o:parseFloat(k[1]),h:parseFloat(k[2]),l:parseFloat(k[3]),c:parseFloat(k[4])}));
+    barIndex = bars.length;
+    priceHistory = bars.slice(-80).map(b=>b.c);
+    lastPrice = bars[bars.length-1].c;
+    document.getElementById('livePrice').textContent = lastPrice.toFixed(2);
+    addLog('info', `Loaded ${bars.length} candles. Replaying structure...`);
+    for (let i=0; i<bars.length; i++) processSilent(i);
+    addLog('info', `Structure ready · winDir=${winDir} · Swing H: ${swingHigh?.toFixed(2)||'—'} · L: ${swingLow?.toFixed(2)||'—'}`);
+    connect();
+  } catch(e) {
+    addLog('info', 'History failed: ' + e.message + '. Connecting...');
+    connect();
+  }
+}
+
+function processSilent(idx) {
+  // Wick trackers
+  if (winDir===-1 && winEnd>=0 && idx>=winEnd) wickLow = wickLow===null ? bars[idx].l : Math.min(wickLow, bars[idx].l);
+  if (winDir===1  && winEnd>=0 && idx>=winEnd) wickHigh= wickHigh===null? bars[idx].h : Math.max(wickHigh, bars[idx].h);
+  if (fcBullBosBar>=0 && idx>=fcBullBosBar) fcBullHighTrack = fcBullHighTrack===null ? bars[idx].h : Math.max(fcBullHighTrack, bars[idx].h);
+  if (fcBearBosBar>=0 && idx>=fcBearBosBar) fcBearLowTrack  = fcBearLowTrack===null  ? bars[idx].l : Math.min(fcBearLowTrack,  bars[idx].l);
+
+  if (idx >= swingLen) {
+    const pi = idx - swingLen;
+    const ph = getPivotHigh(pi);
+    const pl = getPivotLow(pi);
+    if (ph!==null){swingHigh=ph;swingHighBar=pi;shPending=true;}
+    if (pl!==null){swingLow=pl;swingLowBar=pi;slPending=true;}
+  }
+  const close = bars[idx].c;
+  if (shPending&&swingHigh!==null&&close>swingHigh){
+    shPending=false;
+    const isMSS=lastStruct===-1;
+    const longOk=isMSS&&winDir===-1&&swingHighBar>=winStart&&swingHighBar<=winEnd;
+    const fcBuy=fcBearBosHigh!==null&&swingHigh>fcBearBosHigh;
+    if(longOk){/* silent: don't fire trade */}
+    else if(fcBuy){fcBearBosHigh=null;fcBearBosBar=-1;fcBearLowTrack=null;}
+    winDir=1;winStart=swingHighBar;winEnd=idx;winHigh=swingHigh;winLow=swingLow;wickHigh=null;wickLow=null;
+    fcBullBosLow=swingLow;fcBullBosBar=idx;fcBullHighTrack=null;
+    lastStruct=1;
+  }
+  if (slPending&&swingLow!==null&&close<swingLow){
+    slPending=false;
+    const isMSS=lastStruct===1;
+    const shortOk=isMSS&&winDir===1&&swingLowBar>=winStart&&swingLowBar<=winEnd;
+    const fcSell=fcBullBosLow!==null&&swingLow<fcBullBosLow;
+    if(shortOk){/* silent */}
+    else if(fcSell){fcBullBosLow=null;fcBullBosBar=-1;fcBullHighTrack=null;}
+    winDir=-1;winStart=swingLowBar;winEnd=idx;winHigh=swingHigh;winLow=swingLow;wickLow=null;wickHigh=null;
+    fcBearBosHigh=swingHigh;fcBearBosBar=idx;fcBearLowTrack=null;
+    lastStruct=-1;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FIREBASE LOAD
+// ═══════════════════════════════════════════════════════════
+function initFirebaseLoad() {
+  if (!window.fbLoadAll) { window.addEventListener('fb-ready', initFirebaseLoad, {once:true}); return; }
+  window.fbLoadAll(
+    (trades) => {
+      wins=0; losses=0; totalPnL=0;
+      trades.forEach(t=>{ if(t.pnl>=0)wins++;else losses++; totalPnL+=t.pnl; });
+      updateMetrics();
+      tradeHistory=trades;
+      const body=document.getElementById('tradesBody');
+      body.innerHTML='';
+      trades.slice().sort((a,b)=>b.closeTime-a.closeTime).forEach(t=>{
+        const row=document.createElement('tr');
+        const pnl=t.pnl;
+        row.innerHTML=`
+          <td style="color:${t.dir==='LONG'?'var(--green)':'var(--red)'};font-weight:700">${t.dir}</td>
+          <td>${parseFloat(t.entry).toFixed(2)}</td>
+          <td>${parseFloat(t.exit).toFixed(2)}</td>
+          <td style="color:var(--red)">${parseFloat(t.sl).toFixed(2)}</td>
+          <td style="color:var(--green)">${parseFloat(t.tp).toFixed(2)}</td>
+          <td style="color:${pnl>=0?'var(--green)':'var(--red)'}">${pnl>=0?'+':''}$${parseFloat(pnl).toFixed(2)}</td>
+          <td><span class="tag ${pnl>=0?'tw':'tl'}">${pnl>=0?'WIN':'LOSS'}</span></td>`;
+        body.appendChild(row);
+      });
+      if(trades.length) addLog('info',`🔥 Firebase: ${trades.length} trades loaded`);
+    },
+    (stats)=>{ if(stats?.balance){balance=stats.balance;startBalance=stats.balance;document.getElementById('ctrlBalance').value=stats.balance.toFixed(2);updateMetrics();} }
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+applySettings();
+if (tgToken)  document.getElementById('tgToken').value  = tgToken;
+if (tgChatId) document.getElementById('tgChatId').value = tgChatId;
+updateTgBadge();
+initFbBadge();
+addLog('info', 'BOS/MSS Bot v10 started');
+initFirebaseLoad();
+loadHistory();
+</script>
+</body>
+</html>
